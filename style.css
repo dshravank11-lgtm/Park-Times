@@ -51,7 +51,6 @@ img {
     object-fit: cover;
 }
 
-
 .container {
     max-width: 1280px;
     margin: 0 auto;
@@ -86,7 +85,6 @@ hr.thick {
     border-top: 2px solid var(--text-color);
 }
 
-
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -117,14 +115,6 @@ hr.thick {
     color: var(--bg-color);
 }
 
-.masthead-logo {
-    font-family: 'UnifrakturMaguntia', cursive;
-    font-size: 72px;
-    text-align: center;
-    margin: 15px 0 5px 0;
-    line-height: 1;
-}
-
 nav ul {
     list-style: none;
     padding: 0;
@@ -142,7 +132,6 @@ nav ul {
 nav a.active {
     border-bottom: 2px solid var(--text-color);
 }
-
 
 .label {
     font-family: var(--ui-font);
@@ -174,7 +163,6 @@ nav a.active {
     margin-top: 10px;
     display: block;
 }
-
 
 .admin-panel {
     background: #f9f9f9;
@@ -266,13 +254,7 @@ footer {
     .grid-main {
         grid-template-columns: 1fr;
     }
-
-    .masthead-logo {
-        font-size: 48px;
-    }
 }
-
-
 
 .delete-btn {
     display: block;
@@ -297,8 +279,6 @@ footer {
 .delete-btn.hidden {
     display: none;
 }
-
-
 
 .comment-section {
     margin-top: 16px;
@@ -338,8 +318,6 @@ footer {
     margin: 6px 0 10px;
 }
 
-
-
 .comment-item {
     padding: 8px 0;
     border-bottom: 1px solid var(--border-color);
@@ -375,7 +353,6 @@ footer {
     line-height: 1.5;
     margin: 0;
 }
-
 
 .comment-form {
     margin-top: 10px;
