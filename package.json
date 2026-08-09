@@ -2,6 +2,13 @@
     "name": "parktimes",
     "version": "1.0.0",
     "dependencies": {
+<<<<<<< HEAD
         "@vercel/kv": "^1.0.0"
+=======
+        "@upstash/redis": "^1.38.2",
+        "@vercel/kv": "^1.0.0",
+        "ioredis": "^6.0.0",
+        "redis": "^6.2.0"
+>>>>>>> 26c4e3b (hi)
     }
 }

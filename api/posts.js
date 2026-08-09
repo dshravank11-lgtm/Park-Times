@@ -1,8 +1,16 @@
+<<<<<<< HEAD
 import { kv } from '@vercel/kv';
+=======
+import Redis from 'ioredis';
+
+
+const redis = new Redis(process.env.REDIS_URL);
+>>>>>>> 26c4e3b (hi)
 
 export default async function handler(req, res) {
     if (req.method === 'GET') {
         try {
+<<<<<<< HEAD
             const posts = await kv.get('park_posts') || [];
             return res.status(200).json({ posts });
         } catch (error) {
@@ -12,6 +20,19 @@ export default async function handler(req, res) {
     }
     if (req.method === 'POST') {
         const { password, category, title, image, summary } = req.body;
+=======
+            const rawPosts = await redis.get('park_posts');
+            const posts = rawPosts ? JSON.parse(rawPosts) : [];
+            return res.status(200).json({ posts });
+        } catch (error) {
+            return res.status(200).json({ posts: [] });
+        }
+    }
+
+    if (req.method === 'POST') {
+        const { password, category, title, image, summary } = req.body;
+
+>>>>>>> 26c4e3b (hi)
         if (!password || password !== process.env.ADMIN_PASSWORD) {
             return res.status(401).json({ error: 'Invalid admin password.' });
         }
@@ -30,6 +51,7 @@ export default async function handler(req, res) {
         };
 
         try {
+<<<<<<< HEAD
             const existingPosts = await kv.get('park_posts') || [];
             const updatedPosts = [newPost, ...existingPosts];
 
@@ -38,8 +60,50 @@ export default async function handler(req, res) {
             return res.status(201).json({ message: 'Story published successfully!', post: newPost });
         } catch (error) {
             return res.status(500).json({ error: 'Failed to write to database. Ensure Vercel KV is attached.' });
+=======
+            const rawPosts = await redis.get('park_posts');
+            const existingPosts = rawPosts ? JSON.parse(rawPosts) : [];
+            const updatedPosts = [newPost, ...existingPosts];
+
+            await redis.set('park_posts', JSON.stringify(updatedPosts));
+
+            return res.status(201).json({ message: 'Story published successfully!', post: newPost });
+        } catch (error) {
+            return res.status(500).json({ error: 'Failed to write to database. Check REDIS_URL.' });
+        }
+    }
+
+    if (req.method === 'DELETE') {
+        const { password, id } = req.body;
+
+        if (!password || password !== process.env.ADMIN_PASSWORD) {
+            return res.status(401).json({ error: 'Invalid admin password.' });
+        }
+
+        if (!id) {
+            return res.status(400).json({ error: 'Post ID is required.' });
+        }
+
+        try {
+            const rawPosts = await redis.get('park_posts');
+            const existingPosts = rawPosts ? JSON.parse(rawPosts) : [];
+            const updatedPosts = existingPosts.filter(p => p.id !== id);
+
+            if (updatedPosts.length === existingPosts.length) {
+                return res.status(404).json({ error: 'Post not found.' });
+            }
+
+            await redis.set('park_posts', JSON.stringify(updatedPosts));
+            return res.status(200).json({ message: 'Post deleted.' });
+        } catch (error) {
+            return res.status(500).json({ error: 'Failed to delete post.' });
+>>>>>>> 26c4e3b (hi)
         }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 26c4e3b (hi)
