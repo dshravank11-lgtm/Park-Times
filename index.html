@@ -5,13 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Park Times — Park News</title>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader-spinner"></div>
+    </div>
 
     <div class="container">
 
@@ -42,7 +45,7 @@
                 <form id="publishForm" onsubmit="handlePublish(event)">
                     <div class="form-group">
                         <label>Admin Password</label>
-                        <input type="password" id="adminPassword" required placeholder="Enter Vercel Admin Password">
+                        <input type="password" id="adminPassword" required placeholder="Enter editor password">
                     </div>
                     <div class="form-group">
                         <label>Category</label>
@@ -63,8 +66,7 @@
                     </div>
                     <div class="form-group">
                         <label>Summary / Body Text</label>
-                        <textarea id="articleSummary" rows="4" required
-                            placeholder="Write the story here..."></textarea>
+                        <textarea id="articleSummary" rows="4" required placeholder="Write the story here..."></textarea>
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">Publish Story</button>
@@ -76,13 +78,11 @@
         </div>
 
         <main>
-            <div id="newsGrid" class="grid-main">
-
-            </div>
+            <div id="newsGrid" class="grid-main"></div>
         </main>
 
         <footer>
-            <p>&copy; <span id="year"></span> 67</p>
+            <p>&copy; <span id="year"></span> Park Times &mdash; 67</p>
         </footer>
 
     </div>

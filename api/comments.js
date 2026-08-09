@@ -1,4 +1,6 @@
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL);
 
 export default async function handler(req, res) {
 
@@ -10,13 +12,13 @@ export default async function handler(req, res) {
         }
 
         try {
-            const comments = await kv.get(`comments_${postId}`) || [];
+            const rawComments = await redis.get(`comments_${postId}`);
+            const comments = rawComments ? JSON.parse(rawComments) : [];
             return res.status(200).json({ comments });
         } catch (error) {
             return res.status(200).json({ comments: [] });
         }
     }
-
 
     if (req.method === 'POST') {
         const { postId, name, text } = req.body;
@@ -42,9 +44,11 @@ export default async function handler(req, res) {
         };
 
         try {
-            const existing = await kv.get(`comments_${postId}`) || [];
+            const rawComments = await redis.get(`comments_${postId}`);
+            const existing = rawComments ? JSON.parse(rawComments) : [];
             const updated = [...existing, newComment];
-            await kv.set(`comments_${postId}`, updated);
+
+            await redis.set(`comments_${postId}`, JSON.stringify(updated));
             return res.status(201).json({ comment: newComment });
         } catch (error) {
             return res.status(500).json({ error: 'Failed to save comment.' });
