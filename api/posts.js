@@ -1,26 +1,13 @@
-<<<<<<< HEAD
-import { kv } from '@vercel/kv';
-=======
+
+
 import Redis from 'ioredis';
 
 
 const redis = new Redis(process.env.REDIS_URL);
->>>>>>> 26c4e3b (hi)
 
 export default async function handler(req, res) {
     if (req.method === 'GET') {
         try {
-<<<<<<< HEAD
-            const posts = await kv.get('park_posts') || [];
-            return res.status(200).json({ posts });
-        } catch (error) {
-
-            return res.status(200).json({ posts: [] });
-        }
-    }
-    if (req.method === 'POST') {
-        const { password, category, title, image, summary } = req.body;
-=======
             const rawPosts = await redis.get('park_posts');
             const posts = rawPosts ? JSON.parse(rawPosts) : [];
             return res.status(200).json({ posts });
@@ -32,7 +19,6 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
         const { password, category, title, image, summary } = req.body;
 
->>>>>>> 26c4e3b (hi)
         if (!password || password !== process.env.ADMIN_PASSWORD) {
             return res.status(401).json({ error: 'Invalid admin password.' });
         }
@@ -51,16 +37,6 @@ export default async function handler(req, res) {
         };
 
         try {
-<<<<<<< HEAD
-            const existingPosts = await kv.get('park_posts') || [];
-            const updatedPosts = [newPost, ...existingPosts];
-
-            await kv.set('park_posts', updatedPosts);
-
-            return res.status(201).json({ message: 'Story published successfully!', post: newPost });
-        } catch (error) {
-            return res.status(500).json({ error: 'Failed to write to database. Ensure Vercel KV is attached.' });
-=======
             const rawPosts = await redis.get('park_posts');
             const existingPosts = rawPosts ? JSON.parse(rawPosts) : [];
             const updatedPosts = [newPost, ...existingPosts];
@@ -97,13 +73,9 @@ export default async function handler(req, res) {
             return res.status(200).json({ message: 'Post deleted.' });
         } catch (error) {
             return res.status(500).json({ error: 'Failed to delete post.' });
->>>>>>> 26c4e3b (hi)
         }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 26c4e3b (hi)
+
