@@ -26,9 +26,10 @@ function toggleAdminPanel() {
 function showSkeletons() {
     const grid = document.getElementById('newsGrid');
     grid.innerHTML = '';
+    const pattern = ['hero', 'secondary', 'secondary', 'standard', 'standard', 'standard'];
     for (let i = 0; i < 6; i++) {
         const sk = document.createElement('div');
-        sk.className = 'skeleton-card';
+        sk.className = `skeleton-card skeleton-card--${pattern[i]}`;
         sk.innerHTML = `
             <div class="skeleton-line short" style="margin-bottom:12px"></div>
             <div class="skeleton-line tall"></div>
@@ -62,6 +63,13 @@ function filterCategory(category, element) {
     renderNews();
 }
 
+function sizeForIndex(index) {
+    const position = index % 6;
+    if (position === 0) return 'hero';
+    if (position === 1 || position === 2) return 'secondary';
+    return 'standard';
+}
+
 function renderNews() {
     const grid = document.getElementById('newsGrid');
     grid.innerHTML = '';
@@ -76,8 +84,9 @@ function renderNews() {
     }
 
     filtered.forEach((article, index) => {
-        const card = buildCard(article);
-        card.style.animationDelay = `${index * 60}ms`;
+        const size = sizeForIndex(index);
+        const card = buildCard(article, size);
+        card.style.animationDelay = `${Math.min(index, 8) * 60}ms`;
         grid.appendChild(card);
         loadComments(article.id);
     });
@@ -89,9 +98,9 @@ function renderNews() {
     });
 }
 
-function buildCard(article) {
+function buildCard(article, size = 'standard') {
     const card = document.createElement('article');
-    card.className = 'article-card';
+    card.className = `article-card card--${size}`;
     card.dataset.id = article.id;
 
     const deleteBtn = document.createElement('button');
@@ -100,10 +109,13 @@ function buildCard(article) {
     deleteBtn.onclick = () => handleDelete(article.id);
     card.appendChild(deleteBtn);
 
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
     const label = document.createElement('span');
     label.className = 'label';
     label.textContent = article.category;
-    card.appendChild(label);
+    body.appendChild(label);
 
     if (article.image) {
         const wrapper = document.createElement('div');
@@ -119,19 +131,20 @@ function buildCard(article) {
     const headline = document.createElement('h3');
     headline.className = 'story-headline';
     headline.textContent = article.title;
-    card.appendChild(headline);
+    body.appendChild(headline);
 
     const summary = document.createElement('p');
     summary.className = 'story-summary';
     summary.textContent = article.summary;
-    card.appendChild(summary);
+    body.appendChild(summary);
 
     const date = document.createElement('span');
     date.className = 'story-date';
     date.textContent = new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    card.appendChild(date);
+    body.appendChild(date);
 
-    card.appendChild(buildCommentSection(article.id));
+    body.appendChild(buildCommentSection(article.id));
+    card.appendChild(body);
 
     return card;
 }
