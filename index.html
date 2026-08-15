@@ -1,30 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Park Times — Park News</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Archivo+Narrow:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loader-spinner"></div>
     </div>
-
     <div class="container">
 
         <div class="top-bar">
             <span id="current-date"></span>
+            <span class="top-bar-edition">Park Edition</span>
             <button class="admin-toggle-btn" id="adminBtn" onclick="toggleAdminPanel()">Editor Sign In</button>
         </div>
 
-        <header>
-            <img src="image.png" alt="Park Times" class="masthead-image">
+        <header class="masthead">
+            <div class="masthead-emblem">
+                <img src="image.png" alt="Park Times" class="masthead-image">
+            </div>
+            <h1 class="masthead-title">Park Times</h1>
+            <p class="masthead-tagline">All the News That&rsquo;s From The Park</p>
         </header>
 
         <nav>
@@ -84,10 +86,7 @@
         <footer>
             <p>&copy; <span id="year"></span> Park Times &mdash; 67</p>
         </footer>
-
     </div>
-
     <script src="app.js"></script>
 </body>
-
 </html>
