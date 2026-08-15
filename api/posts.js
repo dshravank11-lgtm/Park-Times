@@ -1,6 +1,5 @@
 import Redis from 'ioredis';
 
-
 const redis = new Redis(process.env.REDIS_URL);
 
 export default async function handler(req, res) {
@@ -15,7 +14,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-        const { password, category, title, image, summary } = req.body;
+        const { password, category, title, image, summary, content } = req.body;
 
         if (!password || password !== process.env.ADMIN_PASSWORD) {
             return res.status(401).json({ error: 'Invalid admin password.' });
@@ -31,6 +30,7 @@ export default async function handler(req, res) {
             title,
             image: image || null,
             summary,
+            content: content || '',
             date: new Date().toISOString()
         };
 
