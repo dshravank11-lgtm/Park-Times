@@ -1,11 +1,21 @@
 let allArticles = [];
 let activeCategory = 'All';
-let adminOpen = false;
+let editorPassword = null;
+
+const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            revealObserver.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.12 });
 
 document.addEventListener('DOMContentLoaded', () => {
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', dateOptions);
     document.getElementById('year').textContent = new Date().getFullYear();
+    setupEditorToolbar();
     fetchNews();
 });
 
@@ -14,22 +24,94 @@ function hideOverlay() {
     if (overlay) overlay.classList.add('hidden');
 }
 
-function toggleAdminPanel() {
+function handleAdminButtonClick() {
     const panel = document.getElementById('adminPanel');
-    adminOpen = !adminOpen;
-    panel.classList.toggle('hidden', !adminOpen);
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.classList.toggle('hidden', !adminOpen);
-    });
+    const isHidden = panel.classList.contains('hidden');
+
+    if (!isHidden) {
+        closeAdminPanel();
+        return;
+    }
+
+    panel.classList.remove('hidden');
+    if (editorPassword) {
+        showComposeView();
+    } else {
+        showLoginView();
+    }
+}
+
+function closeAdminPanel() {
+    document.getElementById('adminPanel').classList.add('hidden');
+}
+
+function showLoginView() {
+    document.getElementById('loginView').classList.remove('hidden');
+    document.getElementById('composeView').classList.add('hidden');
+    const pwField = document.getElementById('loginPassword');
+    pwField.value = '';
+    document.getElementById('loginStatus').textContent = '';
+    setTimeout(() => pwField.focus(), 50);
+}
+
+function showComposeView() {
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('composeView').classList.remove('hidden');
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    const status = document.getElementById('loginStatus');
+    const btn = event.target.querySelector('.btn-primary');
+    const password = document.getElementById('loginPassword').value;
+
+    btn.textContent = 'Checking...';
+    btn.disabled = true;
+    status.style.color = 'var(--text-muted)';
+    status.textContent = '';
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+
+        if (res.ok) {
+            editorPassword = password;
+            document.getElementById('adminBtn').textContent = 'New Story';
+            document.getElementById('signOutBtn').classList.remove('hidden');
+            showComposeView();
+            renderNews();
+        } else {
+            status.style.color = 'var(--red)';
+            status.textContent = 'Incorrect password.';
+        }
+    } catch (err) {
+        status.style.color = 'var(--red)';
+        status.textContent = 'Connection error.';
+    } finally {
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+    }
+}
+
+function handleSignOut() {
+    editorPassword = null;
+    document.getElementById('adminBtn').textContent = 'Editor Sign In';
+    document.getElementById('signOutBtn').classList.add('hidden');
+    closeAdminPanel();
+    renderNews();
 }
 
 function showSkeletons() {
+    const heroSlot = document.getElementById('heroSlot');
     const grid = document.getElementById('newsGrid');
+    heroSlot.innerHTML = '<div class="skeleton-card skeleton-card--hero"><div class="skeleton-line short" style="margin-bottom:12px"></div><div class="skeleton-line tall"></div><div class="skeleton-line full"></div><div class="skeleton-line medium"></div></div>';
     grid.innerHTML = '';
-    const pattern = ['hero', 'secondary', 'secondary', 'standard', 'standard', 'standard'];
     for (let i = 0; i < 6; i++) {
         const sk = document.createElement('div');
-        sk.className = `skeleton-card skeleton-card--${pattern[i]}`;
+        sk.className = 'skeleton-card';
         sk.innerHTML = `
             <div class="skeleton-line short" style="margin-bottom:12px"></div>
             <div class="skeleton-line tall"></div>
@@ -49,29 +131,35 @@ async function fetchNews() {
         allArticles = data.posts || [];
         renderNews();
     } catch (err) {
-        const grid = document.getElementById('newsGrid');
-        grid.innerHTML = '<div class="empty-state">Error loading news articles.</div>';
+        document.getElementById('heroSlot').innerHTML = '';
+        document.getElementById('newsGrid').innerHTML = '<div class="empty-state">Error loading news articles.</div>';
     } finally {
         hideOverlay();
     }
 }
 
 function filterCategory(category, element) {
+    if (category === activeCategory) return;
     activeCategory = category;
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
     element.classList.add('active');
-    renderNews();
-}
 
-function sizeForIndex(index) {
-    const position = index % 6;
-    if (position === 0) return 'hero';
-    if (position === 1 || position === 2) return 'secondary';
-    return 'standard';
+    const heroSlot = document.getElementById('heroSlot');
+    const grid = document.getElementById('newsGrid');
+    heroSlot.classList.add('fading');
+    grid.classList.add('fading');
+
+    setTimeout(() => {
+        renderNews();
+        heroSlot.classList.remove('fading');
+        grid.classList.remove('fading');
+    }, 180);
 }
 
 function renderNews() {
+    const heroSlot = document.getElementById('heroSlot');
     const grid = document.getElementById('newsGrid');
+    heroSlot.innerHTML = '';
     grid.innerHTML = '';
 
     const filtered = activeCategory === 'All'
@@ -83,39 +171,43 @@ function renderNews() {
         return;
     }
 
-    filtered.forEach((article, index) => {
-        const size = sizeForIndex(index);
-        const card = buildCard(article, size);
+    const [first, ...rest] = filtered;
+
+    const heroCard = buildCard(first, true);
+    heroSlot.appendChild(heroCard);
+    revealObserver.observe(heroCard);
+
+    rest.forEach((article, index) => {
+        const card = buildCard(article, false);
         card.style.animationDelay = `${Math.min(index, 8) * 60}ms`;
         grid.appendChild(card);
-        loadComments(article.id);
-    });
-
-    requestAnimationFrame(() => {
-        document.querySelectorAll('.article-card').forEach(card => {
-            card.classList.add('visible');
-        });
+        revealObserver.observe(card);
     });
 }
 
-function buildCard(article, size = 'standard') {
+function buildCard(article, isHero) {
     const card = document.createElement('article');
-    card.className = `article-card card--${size}`;
+    card.className = 'article-card' + (isHero ? ' article-card--hero' : '');
     card.dataset.id = article.id;
 
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-btn' + (adminOpen ? '' : ' hidden');
+    deleteBtn.className = 'delete-btn' + (editorPassword ? '' : ' hidden');
     deleteBtn.textContent = 'Delete';
-    deleteBtn.onclick = () => handleDelete(article.id);
+    deleteBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleDelete(article.id);
+    };
     card.appendChild(deleteBtn);
 
-    const body = document.createElement('div');
-    body.className = 'card-body';
+    const link = document.createElement('a');
+    link.className = 'card-link';
+    link.href = `article.html?id=${encodeURIComponent(article.id)}`;
 
     const label = document.createElement('span');
     label.className = 'label';
     label.textContent = article.category;
-    body.appendChild(label);
+    link.appendChild(label);
 
     if (article.image) {
         const wrapper = document.createElement('div');
@@ -125,46 +217,47 @@ function buildCard(article, size = 'standard') {
         img.alt = '';
         img.loading = 'lazy';
         wrapper.appendChild(img);
-        card.appendChild(wrapper);
+        link.appendChild(wrapper);
     }
 
     const headline = document.createElement('h3');
     headline.className = 'story-headline';
     headline.textContent = article.title;
-    body.appendChild(headline);
+    link.appendChild(headline);
 
     const summary = document.createElement('p');
     summary.className = 'story-summary';
     summary.textContent = article.summary;
-    body.appendChild(summary);
+    link.appendChild(summary);
 
+    const meta = document.createElement('div');
+    meta.className = 'story-meta';
     const date = document.createElement('span');
     date.className = 'story-date';
     date.textContent = new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    body.appendChild(date);
+    meta.appendChild(date);
+    link.appendChild(meta);
 
-    body.appendChild(buildCommentSection(article.id));
-    card.appendChild(body);
-
+    card.appendChild(link);
     return card;
 }
 
 async function handleDelete(postId) {
-    if (!confirm('Delete this story? This cannot be undone.')) return;
-
-    const pw = document.getElementById('adminPassword').value;
-    if (!pw) {
-        alert('Enter your editor password in the panel above first.');
+    if (!editorPassword) {
+        alert('Please sign in as an editor first.');
         return;
     }
+
+    if (!confirm('Delete this story? This cannot be undone.')) return;
 
     try {
         const res = await fetch('/api/posts', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pw, id: postId })
+            body: JSON.stringify({ password: editorPassword, id: postId })
         });
         const result = await res.json();
+
         if (res.ok) {
             const card = document.querySelector(`article[data-id="${postId}"]`);
             if (card) {
@@ -176,6 +269,9 @@ async function handleDelete(postId) {
                     renderNews();
                 }, 310);
             }
+        } else if (res.status === 401) {
+            alert('Your session is no longer valid. Please sign in again.');
+            handleSignOut();
         } else {
             alert(result.error || 'Failed to delete.');
         }
@@ -184,213 +280,108 @@ async function handleDelete(postId) {
     }
 }
 
-function buildCommentSection(postId) {
-    const section = document.createElement('div');
-    section.className = 'comment-section';
-    section.id = `comments-${postId}`;
+function setupEditorToolbar() {
+    const toolbar = document.querySelector('.editor-toolbar');
+    const editor = document.getElementById('articleContent');
+    if (!toolbar || !editor) return;
 
-    const toggle = document.createElement('button');
-    toggle.className = 'comments-toggle';
-    toggle.textContent = 'Comments';
-    toggle.onclick = () => {
-        const body = section.querySelector('.comments-body');
-        const isOpen = !body.classList.contains('hidden');
-        body.classList.toggle('hidden', isOpen);
-        toggle.classList.toggle('open', !isOpen);
-        toggle.textContent = isOpen ? 'Comments' : 'Comments';
-    };
-    section.appendChild(toggle);
-
-    const body = document.createElement('div');
-    body.className = 'comments-body hidden';
-
-    const list = document.createElement('div');
-    list.className = 'comments-list';
-    list.id = `comments-list-${postId}`;
-    body.appendChild(list);
-
-    body.appendChild(buildCommentForm(postId));
-    section.appendChild(body);
-
-    return section;
-}
-
-function buildCommentForm(postId) {
-    const form = document.createElement('form');
-    form.className = 'comment-form';
-    form.onsubmit = (e) => handleComment(e, postId);
-
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.className = 'comment-name-input';
-    nameInput.placeholder = 'Your name';
-    nameInput.maxLength = 50;
-    nameInput.required = true;
-    nameInput.value = localStorage.getItem('commenterName') || '';
-    nameInput.addEventListener('change', () => {
-        localStorage.setItem('commenterName', nameInput.value.trim());
+    toolbar.querySelectorAll('.editor-btn[data-cmd]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            editor.focus();
+            const cmd = btn.dataset.cmd;
+            if (cmd === 'bold') document.execCommand('bold');
+            else if (cmd === 'italic') document.execCommand('italic');
+            else if (cmd === 'h2') document.execCommand('formatBlock', false, 'h2');
+            else if (cmd === 'quote') document.execCommand('formatBlock', false, 'blockquote');
+        });
     });
-    form.appendChild(nameInput);
 
-    const textInput = document.createElement('textarea');
-    textInput.className = 'comment-text-input';
-    textInput.placeholder = 'Write a comment...';
-    textInput.maxLength = 500;
-    textInput.rows = 2;
-    textInput.required = true;
-    form.appendChild(textInput);
+    document.getElementById('insertImageBtn').addEventListener('click', () => {
+        const url = prompt('Image URL (e.g. image2.png or https://example.com/photo.jpg):');
+        if (!url) return;
+        const caption = prompt('Caption (optional, leave blank to skip):') || '';
 
-    const submit = document.createElement('button');
-    submit.type = 'submit';
-    submit.className = 'comment-submit';
-    submit.textContent = 'Post';
-    form.appendChild(submit);
+        const figureHtml = caption
+            ? `<figure><img src="${escapeAttr(url)}" alt=""><figcaption>${escapeHtml(caption)}</figcaption></figure><p><br></p>`
+            : `<figure><img src="${escapeAttr(url)}" alt=""></figure><p><br></p>`;
 
-    const status = document.createElement('p');
-    status.className = 'comment-status';
-    form.appendChild(status);
-
-    return form;
+        insertHtmlAtCursor(editor, figureHtml);
+    });
 }
 
-async function loadComments(postId) {
-    const list = document.getElementById(`comments-list-${postId}`);
-    if (!list) return;
-    try {
-        const res = await fetch(`/api/comments?postId=${postId}`);
-        const data = await res.json();
-        renderComments(postId, data.comments || []);
-    } catch (err) {}
-}
+function insertHtmlAtCursor(editor, html) {
+    editor.focus();
+    const sel = window.getSelection();
 
-function renderComments(postId, comments) {
-    const list = document.getElementById(`comments-list-${postId}`);
-    if (!list) return;
-    list.innerHTML = '';
-
-    const toggle = document.querySelector(`#comments-${postId} .comments-toggle`);
-
-    if (comments.length > 0 && toggle) {
-        toggle.textContent = `${comments.length} Comment${comments.length !== 1 ? 's' : ''}`;
-    }
-
-    if (comments.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'comments-empty';
-        empty.textContent = 'No comments yet. Be the first!';
-        list.appendChild(empty);
+    if (!sel || sel.rangeCount === 0 || !editor.contains(sel.anchorNode)) {
+        editor.insertAdjacentHTML('beforeend', html);
         return;
     }
 
-    comments.forEach((c, i) => {
-        const item = document.createElement('div');
-        item.className = 'comment-item';
-        item.style.animationDelay = `${i * 40}ms`;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const frag = range.createContextualFragment(html);
+    const lastNode = frag.lastChild;
+    range.insertNode(frag);
 
-        const meta = document.createElement('div');
-        meta.className = 'comment-meta';
-
-        const name = document.createElement('span');
-        name.className = 'comment-author';
-        name.textContent = c.name;
-
-        const date = document.createElement('span');
-        date.className = 'comment-date';
-        date.textContent = new Date(c.date).toLocaleDateString('en-US');
-
-        meta.appendChild(name);
-        meta.appendChild(date);
-
-        const text = document.createElement('p');
-        text.className = 'comment-text';
-        text.textContent = c.text;
-
-        item.appendChild(meta);
-        item.appendChild(text);
-        list.appendChild(item);
-    });
-}
-
-async function handleComment(event, postId) {
-    event.preventDefault();
-    const form = event.target;
-    const nameInput = form.querySelector('.comment-name-input');
-    const textInput = form.querySelector('.comment-text-input');
-    const status = form.querySelector('.comment-status');
-    const submit = form.querySelector('.comment-submit');
-
-    const name = nameInput.value.trim();
-    const text = textInput.value.trim();
-    if (!name || !text) return;
-
-    localStorage.setItem('commenterName', name);
-
-    submit.textContent = '...';
-    submit.disabled = true;
-    status.style.color = '#999';
-    status.textContent = '';
-
-    try {
-        const res = await fetch('/api/comments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ postId, name, text })
-        });
-        const result = await res.json();
-        if (res.ok) {
-            textInput.value = '';
-            status.textContent = '';
-            await loadComments(postId);
-        } else {
-            status.style.color = 'red';
-            status.textContent = result.error || 'Failed to post.';
-        }
-    } catch (err) {
-        status.style.color = 'red';
-        status.textContent = 'Connection error.';
-    } finally {
-        submit.textContent = 'Post';
-        submit.disabled = false;
+    if (lastNode) {
+        const newRange = document.createRange();
+        newRange.setStartAfter(lastNode);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
     }
 }
 
 async function handlePublish(event) {
     event.preventDefault();
+
+    if (!editorPassword) {
+        alert('Please sign in as an editor first.');
+        return;
+    }
+
     const status = document.getElementById('formStatus');
     const btn = event.target.querySelector('.btn-primary');
 
-    status.style.color = '#666';
+    status.style.color = 'var(--text-muted)';
     status.textContent = 'Publishing...';
     btn.textContent = 'Publishing...';
     btn.disabled = true;
 
-    const password = document.getElementById('adminPassword').value;
     const category = document.getElementById('articleCategory').value;
     const title = document.getElementById('articleTitle').value;
     const image = document.getElementById('articleImage').value;
     const summary = document.getElementById('articleSummary').value;
+    const content = document.getElementById('articleContent').innerHTML;
 
     try {
         const response = await fetch('/api/posts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password, category, title, image, summary })
+            body: JSON.stringify({ password: editorPassword, category, title, image, summary, content })
         });
         const result = await response.json();
+
         if (response.ok) {
-            status.style.color = 'green';
+            status.style.color = '#2f7a3f';
             status.textContent = 'Published!';
             document.getElementById('publishForm').reset();
+            document.getElementById('articleContent').innerHTML = '';
             setTimeout(() => {
-                toggleAdminPanel();
+                closeAdminPanel();
                 fetchNews();
             }, 600);
+        } else if (response.status === 401) {
+            status.style.color = 'var(--red)';
+            status.textContent = 'Your session is no longer valid.';
+            handleSignOut();
         } else {
-            status.style.color = 'red';
-            status.textContent = result.error || 'Authentication failed.';
+            status.style.color = 'var(--red)';
+            status.textContent = result.error || 'Failed to publish.';
         }
     } catch (error) {
-        status.style.color = 'red';
+        status.style.color = 'var(--red)';
         status.textContent = 'Server connection error.';
     } finally {
         btn.textContent = 'Publish Story';
@@ -400,4 +391,8 @@ async function handlePublish(event) {
 
 function escapeHtml(str) {
     return str ? str.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])) : '';
+}
+
+function escapeAttr(str) {
+    return escapeHtml(str);
 }
