@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Park Times — Park News</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Archivo+Narrow:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,19 +11,16 @@
         <div class="loader-spinner"></div>
     </div>
     <div class="container">
-
         <div class="top-bar">
             <span id="current-date"></span>
-            <span class="top-bar-edition">Park Edition</span>
-            <button class="admin-toggle-btn" id="adminBtn" onclick="toggleAdminPanel()">Editor Sign In</button>
+            <div class="top-bar-actions">
+                <button class="admin-signout-btn hidden" id="signOutBtn" onclick="handleSignOut()">Sign Out</button>
+                <button class="admin-toggle-btn" id="adminBtn" onclick="handleAdminButtonClick()">Editor Sign In</button>
+            </div>
         </div>
 
-        <header class="masthead">
-            <div class="masthead-emblem">
-                <img src="image.png" alt="Park Times" class="masthead-image">
-            </div>
-            <h1 class="masthead-title">Park Times</h1>
-            <p class="masthead-tagline">All the News That&rsquo;s From The Park</p>
+        <header>
+            <img src="image.png" alt="Park Times" class="masthead-image">
         </header>
 
         <nav>
@@ -43,43 +37,70 @@
 
         <div id="adminPanel" class="admin-panel hidden">
             <div class="admin-content">
-                <h3>Publish New Article</h3>
-                <form id="publishForm" onsubmit="handlePublish(event)">
-                    <div class="form-group">
-                        <label>Admin Password</label>
-                        <input type="password" id="adminPassword" required placeholder="Enter editor password">
-                    </div>
-                    <div class="form-group">
-                        <label>Category</label>
-                        <select id="articleCategory">
-                            <option value="News">News</option>
-                            <option value="Football">Football</option>
-                            <option value="Events">Events</option>
-                            <option value="Opinion">Opinion</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Headline</label>
-                        <input type="text" id="articleTitle" required placeholder="Headline...">
-                    </div>
-                    <div class="form-group">
-                        <label>Image (Optional)</label>
-                        <input type="text" id="articleImage" placeholder="image1.png or https://example.com/photo.jpg">
-                    </div>
-                    <div class="form-group">
-                        <label>Summary / Body Text</label>
-                        <textarea id="articleSummary" rows="4" required placeholder="Write the story here..."></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">Publish Story</button>
-                        <button type="button" class="btn-secondary" onclick="toggleAdminPanel()">Cancel</button>
-                    </div>
-                    <p id="formStatus" class="form-status"></p>
-                </form>
+
+                <div id="loginView">
+                    <h3>Editor Sign In</h3>
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="loginPassword" required placeholder="Enter editor password" autocomplete="current-password">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Sign In</button>
+                            <button type="button" class="btn-secondary" onclick="closeAdminPanel()">Cancel</button>
+                        </div>
+                        <p id="loginStatus" class="form-status"></p>
+                    </form>
+                </div>
+
+                <div id="composeView" class="hidden">
+                    <h3>Publish New Article</h3>
+                    <form id="publishForm" onsubmit="handlePublish(event)">
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="articleCategory">
+                                <option value="News">News</option>
+                                <option value="Football">Football</option>
+                                <option value="Events">Events</option>
+                                <option value="Opinion">Opinion</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Headline</label>
+                            <input type="text" id="articleTitle" required placeholder="Headline...">
+                        </div>
+                        <div class="form-group">
+                            <label>Cover Image (Optional)</label>
+                            <input type="text" id="articleImage" placeholder="image1.png or https://example.com/photo.jpg">
+                        </div>
+                        <div class="form-group">
+                            <label>Summary</label>
+                            <textarea id="articleSummary" rows="3" required placeholder="Short teaser shown on the front page..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Article Body (Optional)</label>
+                            <div class="editor-toolbar">
+                                <button type="button" class="editor-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+                                <button type="button" class="editor-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+                                <button type="button" class="editor-btn" data-cmd="h2" title="Subheading">H2</button>
+                                <button type="button" class="editor-btn" data-cmd="quote" title="Pull quote">&ldquo;&rdquo;</button>
+                                <button type="button" class="editor-btn" id="insertImageBtn" title="Insert image here">+ Image</button>
+                            </div>
+                            <div id="articleContent" class="editor-content" contenteditable="true" data-placeholder="Write the full story here. Place your cursor anywhere and use + Image to drop a picture at that exact point."></div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Publish Story</button>
+                            <button type="button" class="btn-secondary" onclick="closeAdminPanel()">Cancel</button>
+                        </div>
+                        <p id="formStatus" class="form-status"></p>
+                    </form>
+                </div>
+
             </div>
         </div>
 
         <main>
+            <div id="heroSlot" class="hero-slot"></div>
             <div id="newsGrid" class="grid-main"></div>
         </main>
 
