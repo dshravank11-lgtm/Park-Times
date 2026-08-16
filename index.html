@@ -71,7 +71,12 @@
                         </div>
                         <div class="form-group">
                             <label>Cover Image (Optional)</label>
-                            <input type="text" id="articleImage" placeholder="image1.png or https://example.com/photo.jpg">
+                            <select id="articleImageSelect">
+                                <option value="">— No image —</option>
+                                <option value="__custom__">Custom URL…</option>
+                            </select>
+                            <input type="text" id="articleImage" class="hidden" placeholder="https://example.com/photo.jpg">
+                            <div class="image-preview hidden" id="articleImagePreview"><img alt=""></div>
                         </div>
                         <div class="form-group">
                             <label>Summary</label>
@@ -88,6 +93,10 @@
                             </div>
                             <div id="articleContent" class="editor-content" contenteditable="true" data-placeholder="Write the full story here. Place your cursor anywhere and use + Image to drop a picture at that exact point."></div>
                         </div>
+                        <label class="disclosure">
+                            <input type="checkbox" id="publishRulesCheck">
+                            <span>I have read and agree to the <a href="rules.html#editor-rules" class="rules-link" target="_blank">Editor Rules</a>.</span>
+                        </label>
                         <div class="form-actions">
                             <button type="submit" class="btn-primary">Publish Story</button>
                             <button type="button" class="btn-secondary hidden" id="cancelEditBtn" onclick="handleCancelEdit()">Cancel Edit</button>
@@ -100,13 +109,35 @@
             </div>
         </div>
 
+        <div id="imageLibraryModal" class="image-modal hidden">
+            <div class="image-modal-backdrop" onclick="closeImageLibrary()"></div>
+            <div class="image-modal-panel">
+                <h4>Choose an Image</h4>
+                <div id="imageLibraryGrid" class="image-modal-grid">
+                    <div class="image-modal-empty">No images in the images folder yet.</div>
+                </div>
+                <div class="image-modal-field">
+                    <label>Custom URL</label>
+                    <input type="text" id="imageModalUrl" placeholder="Or paste a URL…">
+                </div>
+                <div class="image-modal-field">
+                    <label>Caption (optional)</label>
+                    <input type="text" id="imageModalCaption" placeholder="Caption text…">
+                </div>
+                <div class="image-modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeImageLibrary()">Cancel</button>
+                    <button type="button" class="btn-primary" id="imageModalInsertBtn">Insert</button>
+                </div>
+            </div>
+        </div>
+
         <main>
             <div id="heroSlot" class="hero-slot"></div>
             <div id="newsGrid" class="grid-main"></div>
         </main>
 
         <footer>
-            <p>&copy; <span id="year"></span> Park Times &mdash; 67</p>
+            <p>&copy; <span id="year"></span> Park Times &mdash; 67 &middot; <a href="rules.html" class="rules-link">Rules</a></p>
         </footer>
     </div>
     <script src="app.js"></script>
