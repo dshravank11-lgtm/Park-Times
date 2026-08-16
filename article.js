@@ -31,6 +31,7 @@ async function loadArticle() {
             renderNotFound(main);
         } else {
             renderArticle(main, post);
+            loadPoll(id);
             loadComments(id);
         }
     } catch (err) {
@@ -70,6 +71,7 @@ function renderArticle(main, post) {
         <div class="article-byline"><span>${dateFormatted}</span></div>
         ${heroImage}
         <div class="article-body">${body}</div>
+        <section class="poll-section" id="pollSection"></section>
         <a href="index.html" class="back-link back-link--bottom">&larr; Back to Park Times</a>
 
         <section class="comments-section" id="commentsSection">
@@ -164,6 +166,7 @@ async function handleCommentSubmit(event) {
             document.getElementById('commentText').value = '';
             status.style.color = '#2f7a3f';
             status.textContent = 'Comment posted!';
+
             loadComments(postId);
             setTimeout(() => { status.textContent = ''; }, 3000);
         } else {
@@ -176,6 +179,100 @@ async function handleCommentSubmit(event) {
     } finally {
         btn.textContent = 'Post';
         btn.disabled = false;
+    }
+}
+
+async function loadPoll(postId) {
+    const section = document.getElementById('pollSection');
+    if (!section) return;
+
+    try {
+        const res = await fetch(`/api/polls?postId=${encodeURIComponent(postId)}`);
+        const data = await res.json();
+        if (data.poll) {
+            renderPoll(section, data.poll, data.hasVoted);
+        }
+    } catch (err) {
+        section.innerHTML = '';
+    }
+}
+
+function renderPoll(section, poll, hasVoted) {
+    section.dataset.postId = poll.postId;
+
+    if (hasVoted) {
+        const total = poll.totalVotes || 0;
+        section.innerHTML = `
+            <h2 class="poll-question">${escapeHtml(poll.question)}</h2>
+            <div class="poll-results">
+                ${poll.options.map(o => {
+                    const pct = total > 0 ? Math.round((o.votes / total) * 100) : 0;
+                    return `
+                        <div class="poll-result">
+                            <div class="poll-result-label"><span>${escapeHtml(o.text)}</span><span>${pct}%</span></div>
+                            <div class="poll-bar"><div class="poll-bar-fill" style="width:${pct}%"></div></div>
+                            <div class="poll-result-votes">${o.votes} vote${o.votes === 1 ? '' : 's'}</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            <div class="poll-total">${total} vote${total === 1 ? '' : 's'}</div>
+        `;
+        return;
+    }
+
+    section.innerHTML = `
+        <h2 class="poll-question">${escapeHtml(poll.question)}</h2>
+        <div class="poll-choices">
+            ${poll.options.map(o => `
+                <label class="poll-choice">
+                    <input type="radio" name="pollOption" value="${escapeAttr(o.id)}">
+                    <span>${escapeHtml(o.text)}</span>
+                </label>
+            `).join('')}
+        </div>
+        <button type="button" class="btn-primary poll-vote-btn" onclick="submitPollVote()">Vote</button>
+        <p class="poll-status form-status"></p>
+    `;
+}
+
+async function submitPollVote() {
+    const section = document.getElementById('pollSection');
+    const postId = section.dataset.postId;
+    const selected = section.querySelector('input[name="pollOption"]:checked');
+    const status = section.querySelector('.poll-status');
+    const btn = section.querySelector('.poll-vote-btn');
+
+    if (!selected) {
+        status.style.color = 'var(--red)';
+        status.textContent = 'Please choose an option.';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Voting...';
+
+    try {
+        const res = await fetch('/api/polls', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postId, optionId: selected.value })
+        });
+        const data = await res.json();
+
+        if (res.ok || res.status === 409) {
+            renderPoll(section, data.poll, true);
+        } else {
+            btn.disabled = false;
+            btn.textContent = 'Vote';
+            status.style.color = 'var(--red)';
+            status.textContent = data.error || 'Failed to submit vote.';
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Vote';
+        status.style.color = 'var(--red)';
+        status.textContent = 'Connection error.';
     }
 }
 
