@@ -47,6 +47,47 @@ export default async function handler(req, res) {
         }
     }
 
+    if (req.method === 'PUT') {
+        const { password, id, category, title, image, summary, content } = req.body;
+
+        if (!password || password !== process.env.ADMIN_PASSWORD) {
+            return res.status(401).json({ error: 'Invalid admin password.' });
+        }
+
+        if (!id) {
+            return res.status(400).json({ error: 'Post ID is required.' });
+        }
+
+        if (!title || !summary) {
+            return res.status(400).json({ error: 'Title and summary are required.' });
+        }
+
+        try {
+            const rawPosts = await redis.get('park_posts');
+            const existingPosts = rawPosts ? JSON.parse(rawPosts) : [];
+            const index = existingPosts.findIndex(p => p.id === id);
+
+            if (index === -1) {
+                return res.status(404).json({ error: 'Post not found.' });
+            }
+
+            existingPosts[index] = {
+                ...existingPosts[index],
+                category: category || existingPosts[index].category,
+                title,
+                image: image || null,
+                summary,
+                content: content || '',
+                updatedAt: new Date().toISOString()
+            };
+
+            await redis.set('park_posts', JSON.stringify(existingPosts));
+            return res.status(200).json({ message: 'Story updated successfully!', post: existingPosts[index] });
+        } catch (error) {
+            return res.status(500).json({ error: 'Failed to update post.' });
+        }
+    }
+
     if (req.method === 'DELETE') {
         const { password, id } = req.body;
 
