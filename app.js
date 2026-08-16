@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('year').textContent = new Date().getFullYear();
     setupEditorToolbar();
     setupImageLibrary();
+    setupPollEditor();
     loadImageLibrary();
     fetchNews();
 });
@@ -75,6 +76,7 @@ function showComposeView(postToEdit) {
         const btn = document.querySelector('#publishForm .btn-primary');
         if (btn) btn.textContent = 'Save Changes';
         document.getElementById('cancelEditBtn').classList.remove('hidden');
+        loadExistingPoll(postToEdit.id);
     } else {
         resetComposeForm();
     }
@@ -85,6 +87,7 @@ function resetComposeForm() {
     document.getElementById('composeTitle').textContent = 'New Story';
     document.getElementById('publishForm').reset();
     setCoverImageValue('');
+    resetPollEditor();
     document.getElementById('articleContent').innerHTML = '';
     document.getElementById('formStatus').textContent = '';
     const btn = document.querySelector('#publishForm .btn-primary');
@@ -394,6 +397,127 @@ function setupImageLibrary() {
     insertBtn.addEventListener('click', insertImageFromModal);
 }
 
+const MAX_POLL_OPTIONS = 6;
+const MIN_POLL_OPTIONS = 2;
+
+function setupPollEditor() {
+    const optionsContainer = document.getElementById('pollOptions');
+    const addBtn = document.getElementById('addPollOptionBtn');
+    if (!optionsContainer || !addBtn) return;
+
+    optionsContainer.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.poll-option-remove');
+        if (!removeBtn) return;
+        if (optionsContainer.children.length <= MIN_POLL_OPTIONS) return;
+        removeBtn.closest('.poll-option-row').remove();
+    });
+
+    addBtn.addEventListener('click', () => {
+        if (optionsContainer.children.length >= MAX_POLL_OPTIONS) return;
+        addPollOption('');
+    });
+}
+
+function addPollOption(text) {
+    const optionsContainer = document.getElementById('pollOptions');
+    if (!optionsContainer || optionsContainer.children.length >= MAX_POLL_OPTIONS) return;
+
+    const row = document.createElement('div');
+    row.className = 'poll-option-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'poll-option-input';
+    input.placeholder = `Option ${optionsContainer.children.length + 1}`;
+    input.value = text || '';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'poll-option-remove';
+    removeBtn.title = 'Remove';
+    removeBtn.textContent = '×';
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    optionsContainer.appendChild(row);
+}
+
+function resetPollEditor() {
+    const question = document.getElementById('pollQuestion');
+    const optionsContainer = document.getElementById('pollOptions');
+    const results = document.getElementById('pollEditorResults');
+    if (!question || !optionsContainer) return;
+
+    question.value = '';
+    optionsContainer.innerHTML = '';
+    addPollOption('');
+    addPollOption('');
+    if (results) {
+        results.innerHTML = '';
+        results.classList.add('hidden');
+    }
+}
+
+function getPollOptions() {
+    return Array.from(document.querySelectorAll('#pollOptions .poll-option-input'))
+        .map(input => input.value.trim())
+        .filter(text => text.length > 0);
+}
+
+function renderPollEditorResults(poll) {
+    const results = document.getElementById('pollEditorResults');
+    if (!results) return;
+
+    results.innerHTML = '';
+    poll.options.forEach(o => {
+        const row = document.createElement('div');
+        row.className = 'poll-editor-result';
+        row.innerHTML = `<span>${escapeHtml(o.text)}</span><span>${o.votes} vote${o.votes === 1 ? '' : 's'}</span>`;
+        results.appendChild(row);
+    });
+
+    const total = document.createElement('div');
+    total.className = 'poll-editor-total';
+    total.textContent = `${poll.totalVotes} total`;
+    results.appendChild(total);
+
+    results.classList.remove('hidden');
+}
+
+async function loadExistingPoll(postId) {
+    resetPollEditor();
+    if (!postId) return;
+
+    try {
+        const res = await fetch(`/api/polls?postId=${encodeURIComponent(postId)}`);
+        const data = await res.json();
+        if (data.poll) {
+            document.getElementById('pollQuestion').value = data.poll.question;
+            const optionsContainer = document.getElementById('pollOptions');
+            optionsContainer.innerHTML = '';
+            data.poll.options.forEach(o => addPollOption(o.text));
+            renderPollEditorResults(data.poll);
+        }
+    } catch (err) {
+        resetPollEditor();
+    }
+}
+
+async function savePollForPost(postId) {
+    const question = document.getElementById('pollQuestion').value.trim();
+    const options = getPollOptions();
+
+    try {
+        await fetch('/api/polls', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: editorPassword, postId, question, options })
+        });
+    } catch (err) {
+        return;
+    }
+}
+
 async function loadImageLibrary() {
     try {
         const res = await fetch('/api/images');
@@ -610,6 +734,9 @@ async function handlePublish(event) {
         const result = await response.json();
 
         if (response.ok) {
+            const postId = isEditing ? editingPostId : result.post.id;
+            await savePollForPost(postId);
+
             status.style.color = '#2f7a3f';
             status.textContent = isEditing ? 'Saved!' : 'Published!';
             resetComposeForm();
