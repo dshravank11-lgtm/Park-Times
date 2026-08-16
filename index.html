@@ -93,6 +93,22 @@
                             </div>
                             <div id="articleContent" class="editor-content" contenteditable="true" data-placeholder="Write the full story here. Place your cursor anywhere and use + Image to drop a picture at that exact point."></div>
                         </div>
+                        <div class="form-group">
+                            <label>Poll (Optional)</label>
+                            <input type="text" id="pollQuestion" placeholder="Ask a question...">
+                            <div id="pollOptions">
+                                <div class="poll-option-row">
+                                    <input type="text" class="poll-option-input" placeholder="Option 1">
+                                    <button type="button" class="poll-option-remove" title="Remove">×</button>
+                                </div>
+                                <div class="poll-option-row">
+                                    <input type="text" class="poll-option-input" placeholder="Option 2">
+                                    <button type="button" class="poll-option-remove" title="Remove">×</button>
+                                </div>
+                            </div>
+                            <button type="button" id="addPollOptionBtn" class="editor-btn">+ Add option</button>
+                            <div id="pollEditorResults" class="poll-editor-results hidden"></div>
+                        </div>
                         <label class="disclosure">
                             <input type="checkbox" id="publishRulesCheck">
                             <span>I have read and agree to the <a href="rules.html#editor-rules" class="rules-link" target="_blank">Editor Rules</a>.</span>
