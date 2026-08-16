@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rules — Park Times</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <span id="current-date"></span>
+            <a href="index.html" class="back-link">&larr; Park Times</a>
+        </div>
+
+        <header>
+            <a href="index.html"><img src="image.png" alt="Park Times" class="masthead-image"></a>
+        </header>
+
+        <nav>
+            <hr>
+            <hr class="thick">
+        </nav>
+
+        <main class="rules-page">
+            <h1 class="rules-title">Rules</h1>
+
+            <section id="user-rules" class="rules-section">
+                <h2 class="rules-heading">For Readers</h2>
+                <ol class="rules-list">
+                    <li>Be respectful. No personal attacks, hate speech, swearing, or harassment </li>
+                    <li>Stay on topic. No spam.</li>
+                    <li>Protect privacy. Do not share anyone's private information.</li>
+                </ol>
+            </section>
+
+            <section id="editor-rules" class="rules-section">
+                <h2 class="rules-heading">For Editors</h2>
+                <ol class="rules-list">
+                    <li>Same rules as Readers apply.</li>
+                    <li>Respect privacy. Get permission before publishing names or photos.</li>
+                    <li>Credit images used and no NSFW.</li>
+                </ol>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; <span id="year"></span> Park Times &mdash; 67</p>
+        </footer>
+    </div>
+    <script>
+        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', dateOptions);
+        document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>
