@@ -80,6 +80,10 @@ function renderArticle(main, post) {
                     <button type="submit" class="btn-primary comment-submit-btn">Post</button>
                 </div>
                 <textarea id="commentText" class="comment-textarea" placeholder="Share your thoughts..." maxlength="500" required rows="3"></textarea>
+                <label class="disclosure">
+                    <input type="checkbox" id="commentRulesCheck">
+                    <span>I have read and agree to the <a href="rules.html#user-rules" class="rules-link" target="_blank">Rules</a>.</span>
+                </label>
                 <p id="commentStatus" class="form-status"></p>
             </form>
             <div id="commentsList" class="comments-list">
@@ -137,6 +141,12 @@ async function handleCommentSubmit(event) {
     const status = document.getElementById('commentStatus');
     const btn = event.target.querySelector('.comment-submit-btn');
 
+    if (!document.getElementById('commentRulesCheck').checked) {
+        status.style.color = 'var(--red)';
+        status.textContent = 'Please confirm you have read the rules.';
+        return;
+    }
+
     btn.textContent = 'Posting...';
     btn.disabled = true;
     status.textContent = '';
@@ -154,7 +164,6 @@ async function handleCommentSubmit(event) {
             document.getElementById('commentText').value = '';
             status.style.color = '#2f7a3f';
             status.textContent = 'Comment posted!';
-            // Reload comments to show the new one in full list order
             loadComments(postId);
             setTimeout(() => { status.textContent = ''; }, 3000);
         } else {
