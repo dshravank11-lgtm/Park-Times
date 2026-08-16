@@ -54,7 +54,7 @@
                 </div>
 
                 <div id="composeView" class="hidden">
-                    <h3>Publish New Article</h3>
+                    <h3 id="composeTitle">New Story</h3>
                     <form id="publishForm" onsubmit="handlePublish(event)">
                         <div class="form-group">
                             <label>Category</label>
@@ -90,7 +90,8 @@
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn-primary">Publish Story</button>
-                            <button type="button" class="btn-secondary" onclick="closeAdminPanel()">Cancel</button>
+                            <button type="button" class="btn-secondary hidden" id="cancelEditBtn" onclick="handleCancelEdit()">Cancel Edit</button>
+                            <button type="button" class="btn-secondary" onclick="closeAdminPanel()">Close</button>
                         </div>
                         <p id="formStatus" class="form-status"></p>
                     </form>

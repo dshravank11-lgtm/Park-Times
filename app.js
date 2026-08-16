@@ -1,6 +1,7 @@
 let allArticles = [];
 let activeCategory = 'All';
 let editorPassword = null;
+let editingPostId = null;
 
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -54,9 +55,40 @@ function showLoginView() {
     setTimeout(() => pwField.focus(), 50);
 }
 
-function showComposeView() {
+function showComposeView(postToEdit) {
     document.getElementById('loginView').classList.add('hidden');
     document.getElementById('composeView').classList.remove('hidden');
+
+    if (postToEdit) {
+       
+        editingPostId = postToEdit.id;
+        document.getElementById('composeTitle').textContent = 'Edit Story';
+        document.getElementById('articleCategory').value = postToEdit.category || 'News';
+        document.getElementById('articleTitle').value = postToEdit.title || '';
+        document.getElementById('articleImage').value = postToEdit.image || '';
+        document.getElementById('articleSummary').value = postToEdit.summary || '';
+        document.getElementById('articleContent').innerHTML = postToEdit.content || '';
+        const btn = document.querySelector('#publishForm .btn-primary');
+        if (btn) btn.textContent = 'Save Changes';
+        document.getElementById('cancelEditBtn').classList.remove('hidden');
+    } else {
+        resetComposeForm();
+    }
+}
+
+function resetComposeForm() {
+    editingPostId = null;
+    document.getElementById('composeTitle').textContent = 'New Story';
+    document.getElementById('publishForm').reset();
+    document.getElementById('articleContent').innerHTML = '';
+    document.getElementById('formStatus').textContent = '';
+    const btn = document.querySelector('#publishForm .btn-primary');
+    if (btn) btn.textContent = 'Publish Story';
+    document.getElementById('cancelEditBtn').classList.add('hidden');
+}
+
+function handleCancelEdit() {
+    resetComposeForm();
 }
 
 async function handleLogin(event) {
@@ -200,6 +232,16 @@ function buildCard(article, isHero) {
     };
     card.appendChild(deleteBtn);
 
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn' + (editorPassword ? '' : ' hidden');
+    editBtn.textContent = 'Edit';
+    editBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleEdit(article.id);
+    };
+    card.appendChild(editBtn);
+
     const link = document.createElement('a');
     link.className = 'card-link';
     link.href = `article.html?id=${encodeURIComponent(article.id)}`;
@@ -240,6 +282,17 @@ function buildCard(article, isHero) {
 
     card.appendChild(link);
     return card;
+}
+
+function handleEdit(postId) {
+    if (!editorPassword) return;
+    const post = allArticles.find(a => a.id === postId);
+    if (!post) return;
+
+    const panel = document.getElementById('adminPanel');
+    panel.classList.remove('hidden');
+    showComposeView(post);
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function handleDelete(postId) {
@@ -345,8 +398,8 @@ async function handlePublish(event) {
     const btn = event.target.querySelector('.btn-primary');
 
     status.style.color = 'var(--text-muted)';
-    status.textContent = 'Publishing...';
-    btn.textContent = 'Publishing...';
+    status.textContent = editingPostId ? 'Saving...' : 'Publishing...';
+    btn.textContent = editingPostId ? 'Saving...' : 'Publishing...';
     btn.disabled = true;
 
     const category = document.getElementById('articleCategory').value;
@@ -355,19 +408,24 @@ async function handlePublish(event) {
     const summary = document.getElementById('articleSummary').value;
     const content = document.getElementById('articleContent').innerHTML;
 
+    const isEditing = !!editingPostId;
+
     try {
         const response = await fetch('/api/posts', {
-            method: 'POST',
+            method: isEditing ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: editorPassword, category, title, image, summary, content })
+            body: JSON.stringify({
+                password: editorPassword,
+                ...(isEditing ? { id: editingPostId } : {}),
+                category, title, image, summary, content
+            })
         });
         const result = await response.json();
 
         if (response.ok) {
             status.style.color = '#2f7a3f';
-            status.textContent = 'Published!';
-            document.getElementById('publishForm').reset();
-            document.getElementById('articleContent').innerHTML = '';
+            status.textContent = isEditing ? 'Saved!' : 'Published!';
+            resetComposeForm();
             setTimeout(() => {
                 closeAdminPanel();
                 fetchNews();
@@ -378,13 +436,13 @@ async function handlePublish(event) {
             handleSignOut();
         } else {
             status.style.color = 'var(--red)';
-            status.textContent = result.error || 'Failed to publish.';
+            status.textContent = result.error || (isEditing ? 'Failed to save.' : 'Failed to publish.');
         }
     } catch (error) {
         status.style.color = 'var(--red)';
         status.textContent = 'Server connection error.';
     } finally {
-        btn.textContent = 'Publish Story';
+        btn.textContent = isEditing ? 'Save Changes' : 'Publish Story';
         btn.disabled = false;
     }
 }
