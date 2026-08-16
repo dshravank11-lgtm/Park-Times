@@ -2,6 +2,8 @@ let allArticles = [];
 let activeCategory = 'All';
 let editorPassword = null;
 let editingPostId = null;
+let imageLibrary = [];
+let savedEditorRange = null;
 
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -17,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', dateOptions);
     document.getElementById('year').textContent = new Date().getFullYear();
     setupEditorToolbar();
+    setupImageLibrary();
+    loadImageLibrary();
     fetchNews();
 });
 
@@ -65,7 +69,7 @@ function showComposeView(postToEdit) {
         document.getElementById('composeTitle').textContent = 'Edit Story';
         document.getElementById('articleCategory').value = postToEdit.category || 'News';
         document.getElementById('articleTitle').value = postToEdit.title || '';
-        document.getElementById('articleImage').value = postToEdit.image || '';
+        setCoverImageValue(postToEdit.image || '');
         document.getElementById('articleSummary').value = postToEdit.summary || '';
         document.getElementById('articleContent').innerHTML = postToEdit.content || '';
         const btn = document.querySelector('#publishForm .btn-primary');
@@ -80,6 +84,7 @@ function resetComposeForm() {
     editingPostId = null;
     document.getElementById('composeTitle').textContent = 'New Story';
     document.getElementById('publishForm').reset();
+    setCoverImageValue('');
     document.getElementById('articleContent').innerHTML = '';
     document.getElementById('formStatus').textContent = '';
     const btn = document.querySelector('#publishForm .btn-primary');
@@ -349,17 +354,193 @@ function setupEditorToolbar() {
         });
     });
 
-    document.getElementById('insertImageBtn').addEventListener('click', () => {
-        const url = prompt('Image URL (e.g. image2.png or https://example.com/photo.jpg):');
-        if (!url) return;
-        const caption = prompt('Caption (optional, leave blank to skip):') || '';
-
-        const figureHtml = caption
-            ? `<figure><img src="${escapeAttr(url)}" alt=""><figcaption>${escapeHtml(caption)}</figcaption></figure><p><br></p>`
-            : `<figure><img src="${escapeAttr(url)}" alt=""></figure><p><br></p>`;
-
-        insertHtmlAtCursor(editor, figureHtml);
+    const insertImageBtn = document.getElementById('insertImageBtn');
+    insertImageBtn.addEventListener('mousedown', (e) => e.preventDefault());
+    insertImageBtn.addEventListener('click', () => {
+        openImageLibrary();
     });
+}
+
+function setupImageLibrary() {
+    const select = document.getElementById('articleImageSelect');
+    const input = document.getElementById('articleImage');
+    const preview = document.getElementById('articleImagePreview');
+    const insertBtn = document.getElementById('imageModalInsertBtn');
+    const urlInput = document.getElementById('imageModalUrl');
+
+    select.addEventListener('change', () => {
+        if (select.value === '__custom__') {
+            input.classList.remove('hidden');
+            input.value = '';
+            input.focus();
+            syncCoverImagePreview();
+        } else if (select.value) {
+            input.classList.add('hidden');
+            input.value = select.value;
+            syncCoverImagePreview();
+        } else {
+            input.classList.add('hidden');
+            input.value = '';
+            syncCoverImagePreview();
+        }
+    });
+
+    input.addEventListener('input', syncCoverImagePreview);
+
+    urlInput.addEventListener('input', () => {
+        document.querySelectorAll('.image-modal-thumb').forEach(t => t.classList.remove('selected'));
+    });
+
+    insertBtn.addEventListener('click', insertImageFromModal);
+}
+
+async function loadImageLibrary() {
+    try {
+        const res = await fetch('/api/images');
+        const data = await res.json();
+        imageLibrary = (data.images || []).map(name => ({ name, path: `images/${name}` }));
+    } catch (err) {
+        imageLibrary = [];
+    }
+    populateImageSelect();
+    populateImageGrid();
+}
+
+function populateImageSelect() {
+    const select = document.getElementById('articleImageSelect');
+    if (!select) return;
+
+    const current = document.getElementById('articleImage').value;
+    const currentPath = current && !current.startsWith('http') ? current : '';
+
+    const customOption = select.querySelector('option[value="__custom__"]');
+    select.innerHTML = '';
+    const noneOption = document.createElement('option');
+    noneOption.value = '';
+    noneOption.textContent = '— No image —';
+    select.appendChild(noneOption);
+
+    imageLibrary.forEach(img => {
+        const option = document.createElement('option');
+        option.value = img.path;
+        option.textContent = img.name;
+        select.appendChild(option);
+    });
+
+    select.appendChild(customOption);
+
+    setCoverImageValue(currentPath || current || '');
+}
+
+function setCoverImageValue(value) {
+    const select = document.getElementById('articleImageSelect');
+    const input = document.getElementById('articleImage');
+    const preview = document.getElementById('articleImagePreview');
+
+    if (!value) {
+        select.value = '';
+        input.value = '';
+        input.classList.add('hidden');
+    } else if (value.startsWith('images/') && imageLibrary.some(img => img.path === value)) {
+        select.value = value;
+        input.value = value;
+        input.classList.add('hidden');
+    } else {
+        select.value = '__custom__';
+        input.value = value;
+        input.classList.remove('hidden');
+    }
+
+    syncCoverImagePreview();
+}
+
+function syncCoverImagePreview() {
+    const preview = document.getElementById('articleImagePreview');
+    const input = document.getElementById('articleImage');
+    const img = preview.querySelector('img');
+    const value = input.value.trim();
+
+    if (value) {
+        img.src = value;
+        preview.classList.remove('hidden');
+    } else {
+        img.removeAttribute('src');
+        preview.classList.add('hidden');
+    }
+}
+
+function openImageLibrary() {
+    saveEditorRange();
+    populateImageGrid();
+    document.getElementById('imageModalUrl').value = '';
+    document.getElementById('imageModalCaption').value = '';
+    document.getElementById('imageLibraryModal').classList.remove('hidden');
+    document.querySelectorAll('.image-modal-thumb').forEach(t => t.classList.remove('selected'));
+}
+
+function saveEditorRange() {
+    const editor = document.getElementById('articleContent');
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+        savedEditorRange = sel.getRangeAt(0).cloneRange();
+    } else {
+        savedEditorRange = null;
+    }
+}
+
+function restoreEditorRange() {
+    const editor = document.getElementById('articleContent');
+    if (!savedEditorRange) {
+        editor.focus();
+        return;
+    }
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedEditorRange);
+    editor.focus();
+}
+
+function closeImageLibrary() {
+    document.getElementById('imageLibraryModal').classList.add('hidden');
+}
+
+function populateImageGrid() {
+    const grid = document.getElementById('imageLibraryGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    if (imageLibrary.length === 0) {
+        grid.innerHTML = '<div class="image-modal-empty">No images in the images folder yet.</div>';
+        return;
+    }
+
+    imageLibrary.forEach(img => {
+        const thumb = document.createElement('div');
+        thumb.className = 'image-modal-thumb';
+        thumb.innerHTML = `<img src="${escapeAttr(img.path)}" alt="${escapeAttr(img.name)}" loading="lazy"><span>${escapeHtml(img.name)}</span>`;
+        thumb.addEventListener('click', () => {
+            document.querySelectorAll('.image-modal-thumb').forEach(t => t.classList.remove('selected'));
+            thumb.classList.add('selected');
+            document.getElementById('imageModalUrl').value = img.path;
+        });
+        grid.appendChild(thumb);
+    });
+}
+
+function insertImageFromModal() {
+    const editor = document.getElementById('articleContent');
+    const url = document.getElementById('imageModalUrl').value.trim();
+    const caption = document.getElementById('imageModalCaption').value.trim();
+
+    if (!url) return;
+
+    const figureHtml = caption
+        ? `<figure><img src="${escapeAttr(url)}" alt=""><figcaption>${escapeHtml(caption)}</figcaption></figure><p><br></p>`
+        : `<figure><img src="${escapeAttr(url)}" alt=""></figure><p><br></p>`;
+
+    restoreEditorRange();
+    insertHtmlAtCursor(editor, figureHtml);
+    closeImageLibrary();
 }
 
 function insertHtmlAtCursor(editor, html) {
@@ -396,6 +577,12 @@ async function handlePublish(event) {
 
     const status = document.getElementById('formStatus');
     const btn = event.target.querySelector('.btn-primary');
+
+    if (!document.getElementById('publishRulesCheck').checked) {
+        status.style.color = 'var(--red)';
+        status.textContent = 'Please confirm you have read the rules.';
+        return;
+    }
 
     status.style.color = 'var(--text-muted)';
     status.textContent = editingPostId ? 'Saving...' : 'Publishing...';
